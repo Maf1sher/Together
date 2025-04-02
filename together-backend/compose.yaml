@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: 'postgres:latest'
+    environment:
+      - 'POSTGRES_DB=Together-database'
+      - 'POSTGRES_PASSWORD=${DB_PASSWORD}'
+      - 'POSTGRES_USER=postgres'
+    container_name: 'together-database'
+    ports:
+      - '5432:5432'
+    networks:
+      - together-network
+
+  mail-dev:
+    container_name: 'together-mail-dev'
+    image: maildev/maildev
+    ports:
+      - 1080:1080
+      - 1025:1025
+    networks:
+      - together-network
+
+networks:
+  together-network:
+    driver: bridge
