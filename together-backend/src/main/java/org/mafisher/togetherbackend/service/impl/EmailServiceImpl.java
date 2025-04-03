@@ -1,4 +1,4 @@
-package org.mafisher.togetherbackend.service.Impl;
+package org.mafisher.togetherbackend.service.impl;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;

@@ -1,4 +1,4 @@
-package org.mafisher.togetherbackend.service.Impl;
+package org.mafisher.togetherbackend.service.impl;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.DecodingException;
@@ -26,7 +26,7 @@ public class JwtServiceImpl implements JwtService {
                 .claims()
                 .subject(username)
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + 2 * 60 * 60 * 1000)) // 2 godziny
+                .expiration(new Date(System.currentTimeMillis() + 2 * 60 * 60 * 1000))
                 .and()
                 .signWith(getKey())
                 .compact();

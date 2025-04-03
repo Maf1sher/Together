@@ -1,4 +1,4 @@
-package org.mafisher.togetherbackend.service.Impl;
+package org.mafisher.togetherbackend.service.impl;
 
 import lombok.AllArgsConstructor;
 import org.mafisher.togetherbackend.repository.UserRepository;

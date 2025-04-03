@@ -8,7 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
-import org.mafisher.togetherbackend.service.Impl.UserDetailsService;
+import org.mafisher.togetherbackend.service.impl.UserDetailsService;
 import org.mafisher.togetherbackend.service.JwtService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
