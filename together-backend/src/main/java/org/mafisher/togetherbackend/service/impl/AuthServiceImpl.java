@@ -78,7 +78,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public String verify(LoginRequest loginRequest) throws MessagingException {
         User user = userRepository.findByEmail(loginRequest.getEmail())
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+                .orElseThrow(() -> new CustomException(BusinessErrorCodes.BAD_CREDENTIALS));
 
         if(!user.isEnabled())
             throw new CustomException(BusinessErrorCodes.ACCOUNT_DISABLED);
@@ -116,6 +116,11 @@ public class AuthServiceImpl implements AuthService {
             userRepository.save(userEntity);
             activationTokenService.deleteActivationToken(activationToken);
         }
+    }
+
+    @Override
+    public boolean verifyToken(String token) {
+        return jwtService.validateJwtToken(token);
     }
 
     @Override

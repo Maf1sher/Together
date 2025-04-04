@@ -11,6 +11,7 @@ public interface AuthService {
     UserDto createUser(RegisterRequest registerRequest) throws MessagingException;
     String verify(LoginRequest loginRequest) throws MessagingException;
     void activateUser(Long id, String token) throws MessagingException;
+    boolean verifyToken(String token);
     UserDto findUserByEmail(String email);
     UserDto findUserById(Long id);
     UserDto findUserByNickname(String nickname);

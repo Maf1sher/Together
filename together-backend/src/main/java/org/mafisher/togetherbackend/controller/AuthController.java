@@ -16,7 +16,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/auth")
@@ -55,6 +54,15 @@ public class AuthController {
             throws MessagingException, IOException {
         authService.activateUser(id, token);
         response.sendRedirect(redirectUrl);
-        return new ResponseEntity<>("account has been activated ", HttpStatus.OK);
+        return new ResponseEntity<>("Account has been activated ", HttpStatus.OK);
+    }
+
+    @GetMapping("/check")
+    public ResponseEntity<?> check(HttpServletRequest request){
+        String token = cookieService.getJwtCookie(request);
+        if(authService.verifyToken(token))
+            return ResponseEntity.ok().build();
+        else
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
     }
 }
