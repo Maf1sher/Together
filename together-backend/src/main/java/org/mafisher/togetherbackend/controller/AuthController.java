@@ -60,9 +60,7 @@ public class AuthController {
     @GetMapping("/check")
     public ResponseEntity<?> check(HttpServletRequest request){
         String token = cookieService.getJwtCookie(request);
-        if(authService.verifyToken(token))
-            return ResponseEntity.ok().build();
-        else
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authenticated");
+        UserDto user = authService.verifyToken(token);
+        return new ResponseEntity<>(user, HttpStatus.OK);
     }
 }

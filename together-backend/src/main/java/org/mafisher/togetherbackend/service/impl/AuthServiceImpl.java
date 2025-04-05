@@ -119,8 +119,16 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public boolean verifyToken(String token) {
-        return jwtService.validateJwtToken(token);
+    public UserDto verifyToken(String token) {
+        if(!jwtService.validateJwtToken(token)){
+            throw new CustomException(BusinessErrorCodes.INVALID_TOKEN);
+        }
+        String userName = jwtService.extractUserName(token);
+
+        User user = userRepository.findByEmail(userName).orElseThrow(
+                () -> new RuntimeException("User not found")
+        );
+        return mapper.mapTo(user);
     }
 
     @Override
