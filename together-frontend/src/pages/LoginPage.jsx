@@ -1,6 +1,7 @@
-import { Link } from "react-router-dom";
+import {Link, useNavigate} from "react-router-dom";
 import { useState } from "react";
 import { login } from "../api/authService.js";
+import {useAuth} from "../providers/AuthProvider.jsx";
 
 function LoginPage() {
 
@@ -9,6 +10,9 @@ function LoginPage() {
     const [error, setError] = useState('');
     const [emailError, setEmailError] = useState('');
     const [passwordError, setPasswordError] = useState('');
+
+    const {setAuthStatus, setUser} = useAuth()
+    const navigate = useNavigate();
 
     const validateEmail = (email) => {
         const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -28,7 +32,7 @@ function LoginPage() {
             setEmailError('');
         }
 
-        if (!password.length) {
+        if (!password) {
             setPasswordError('Password is required');
             valid = false;
         } else {
@@ -37,11 +41,13 @@ function LoginPage() {
 
         if (!valid) return;
 
-        try {
-            await login({ email, password });
-        } catch (err) {
-            setError(err.response?.data?.error || "Wystąpił błąd logowania.");
-        }
+        await login({ email, password })
+            .then((user) => {
+                setAuthStatus(true);
+                setUser(user);
+                navigate('/');
+            })
+            .catch(err => setError(err.response?.data?.error || "A login error"))
     };
 
     return (
