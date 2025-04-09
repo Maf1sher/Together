@@ -44,4 +44,10 @@ public class FriendController {
     public ResponseEntity<List<UserDto>> getFriends(Principal principal, Pageable pageable) {
         return new ResponseEntity<>(friendService.getFriends(principal, pageable), HttpStatus.OK);
     }
+
+    @GetMapping("/requests/received")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<UserDto>> getReceivedRequests(Principal principal, Pageable pageable) {
+        return new ResponseEntity<>(friendService.getReceivedRequests(principal, pageable), HttpStatus.OK);
+    }
 }

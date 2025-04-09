@@ -11,4 +11,5 @@ public interface FriendService {
     void acceptRequest(String nickname, Principal principal);
     void rejectRequest(String nickname, Principal principal);
     List<UserDto> getFriends(Principal principal, Pageable pageable);
+    List<UserDto> getReceivedRequests(Principal principal, Pageable pageable);
 }

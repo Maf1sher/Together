@@ -100,6 +100,15 @@ public class FriendServiceImpl implements FriendService {
                 .toList();
     }
 
+    @Override
+    public List<UserDto> getReceivedRequests(Principal principal, Pageable pageable) {
+        User sender = checkUserPrincipal(principal);
+        return sender.getReceivedRequests().stream()
+                .filter((request)-> request.getStatus() == PENDING)
+                .map((request)-> mapper.mapTo(request.getSender()))
+                .toList();
+    }
+
     private User checkUserPrincipal(Principal principal) {
         return userRepository.findByEmail(principal.getName())
                 .orElseThrow(() -> new CustomException(BusinessErrorCodes.BAD_CREDENTIALS));
