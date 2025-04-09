@@ -13,14 +13,12 @@ import org.mafisher.togetherbackend.repository.FriendshipRepository;
 import org.mafisher.togetherbackend.repository.UserRepository;
 import org.mafisher.togetherbackend.service.FriendService;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.security.Principal;
 import java.time.LocalDateTime;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
 import static org.mafisher.togetherbackend.enums.FriendRequestStatus.*;
 
@@ -40,9 +38,26 @@ public class FriendServiceImpl implements FriendService {
 
         checkUsersAreFriends(sender, receiver);
 
+        isUsersDifferent(sender, receiver);
+
         friendRequestRepository.findBySenderAndReceiver(sender, receiver).ifPresent(req -> {
             if (req.getStatus() == PENDING) throw new CustomException(BusinessErrorCodes.REQUEST_ALREADY_EXISTS);
         });
+
+        Optional<FriendRequest> friendRequest = friendRequestRepository.findBySenderAndReceiver(receiver, sender);
+
+        if(friendRequest.isPresent() && friendRequest.get().getStatus() == PENDING) {
+            friendRequest.get().setStatus(ACCEPT);
+            friendRequestRepository.save(friendRequest.get());
+
+            Friendship friendship = Friendship.builder()
+                    .user1(sender)
+                    .user2(receiver)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            friendshipRepository.save(friendship);
+            return;
+        }
 
         FriendRequest request = FriendRequest.builder()
                 .sender(sender)
@@ -128,5 +143,10 @@ public class FriendServiceImpl implements FriendService {
     private FriendRequest findFriendRequest(User user1, User user2) {
         return friendRequestRepository.findBySenderAndReceiver(user1, user2)
                 .orElseThrow(() -> new CustomException(BusinessErrorCodes.REQUEST_NOT_FOUND));
+    }
+
+    private void isUsersDifferent(User user1, User user2) {
+        if(user1.getId().equals(user2.getId()))
+            throw new CustomException(BusinessErrorCodes.USERS_ARE_THE_SAME);
     }
 }

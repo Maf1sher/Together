@@ -22,6 +22,7 @@ public enum BusinessErrorCodes{
     USER_NOT_FOUND(315, "User not found", HttpStatus.NOT_FOUND),
     REQUEST_NOT_FOUND(316, "Request not found", HttpStatus.NOT_FOUND),
     REQUEST_NOT_PENDING(317, "Request not pending", HttpStatus.BAD_REQUEST),
+    USERS_ARE_THE_SAME(318, "Users are the same", HttpStatus.BAD_REQUEST),
     ;
     @Getter
     private final int code;
