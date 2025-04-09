@@ -17,6 +17,11 @@ public enum BusinessErrorCodes{
     BAD_COOKIE(308, "No jwt cookie found", HttpStatus.BAD_REQUEST),
     INVALID_TOKEN(309,"Invalid jwt token", HttpStatus.BAD_REQUEST),
     TOKEN_EXPIRED(312, "Token expired", HttpStatus.BAD_REQUEST),
+    USERS_ARE_ALREADY_FRIENDS(313, "Users are already friends", HttpStatus.BAD_REQUEST),
+    REQUEST_ALREADY_EXISTS(314, "Request already exists", HttpStatus.BAD_REQUEST),
+    USER_NOT_FOUND(315, "User not found", HttpStatus.NOT_FOUND),
+    REQUEST_NOT_FOUND(316, "Request not found", HttpStatus.NOT_FOUND),
+    REQUEST_NOT_PENDING(317, "Request not pending", HttpStatus.BAD_REQUEST),
     ;
     @Getter
     private final int code;
