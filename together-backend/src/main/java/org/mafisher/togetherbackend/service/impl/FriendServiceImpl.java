@@ -12,6 +12,7 @@ import org.mafisher.togetherbackend.repository.FriendRequestRepository;
 import org.mafisher.togetherbackend.repository.FriendshipRepository;
 import org.mafisher.togetherbackend.repository.UserRepository;
 import org.mafisher.togetherbackend.service.FriendService;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
@@ -122,6 +123,12 @@ public class FriendServiceImpl implements FriendService {
                 .filter((request)-> request.getStatus() == PENDING)
                 .map((request)-> mapper.mapTo(request.getSender()))
                 .toList();
+    }
+
+    @Override
+    public Page<UserDto> searchUsers(String query, Pageable pageable, Principal principal) {
+        User sender = checkUserPrincipal(principal);
+        return userRepository.findPotentialFriends(query, sender, pageable).map(mapper::mapTo);
     }
 
     private User checkUserPrincipal(Principal principal) {

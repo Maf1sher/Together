@@ -3,7 +3,9 @@ package org.mafisher.togetherbackend.controller;
 import lombok.RequiredArgsConstructor;
 import org.mafisher.togetherbackend.dto.UserDto;
 import org.mafisher.togetherbackend.service.FriendService;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -49,5 +51,14 @@ public class FriendController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<UserDto>> getReceivedRequests(Principal principal, Pageable pageable) {
         return new ResponseEntity<>(friendService.getReceivedRequests(principal, pageable), HttpStatus.OK);
+    }
+
+    @GetMapping("/search")
+    @PreAuthorize("isAuthenticated()")
+    public Page<UserDto> searchUsers(
+            @RequestParam(required = false) String query,
+            @PageableDefault(size = 10, sort = "nickName") Pageable pageable,
+            Principal principal) {
+        return friendService.searchUsers(query, pageable, principal);
     }
 }
