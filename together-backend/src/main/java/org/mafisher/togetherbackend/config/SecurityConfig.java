@@ -37,6 +37,10 @@ public class SecurityConfig implements WebMvcConfigurer {
                                     "/auth/**"
                             ).permitAll();
 
+                            auth.requestMatchers(
+                                    "/friends/**"
+                            ).hasAuthority("USER");
+
                             auth.anyRequest().authenticated();
                         }
                 )
