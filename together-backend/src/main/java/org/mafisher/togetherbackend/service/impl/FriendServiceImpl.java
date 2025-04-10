@@ -100,7 +100,7 @@ public class FriendServiceImpl implements FriendService {
 
         checkUsersAreFriends(sender, rejectedUser);
 
-        FriendRequest friendRequest = findFriendRequest(sender, rejectedUser);
+        FriendRequest friendRequest = findFriendRequest(rejectedUser, sender);
 
         if(friendRequest.getStatus() != PENDING)
             throw new CustomException(BusinessErrorCodes.REQUEST_NOT_PENDING);
