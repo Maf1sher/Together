@@ -110,4 +110,9 @@ public class User implements UserDetails, Principal {
     public String getFullName(){
         return this.firstName + " " + this.lastName;
     }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
 }
