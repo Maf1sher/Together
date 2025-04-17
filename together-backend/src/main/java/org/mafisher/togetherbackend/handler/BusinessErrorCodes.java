@@ -23,6 +23,14 @@ public enum BusinessErrorCodes{
     REQUEST_NOT_FOUND(316, "Request not found", HttpStatus.NOT_FOUND),
     REQUEST_NOT_PENDING(317, "Request not pending", HttpStatus.BAD_REQUEST),
     USERS_ARE_THE_SAME(318, "Users are the same", HttpStatus.BAD_REQUEST),
+    ROOM_NAME_TAKEN(319, "Room with that name already exists", HttpStatus.BAD_REQUEST),
+    ROOM_NOT_FOUND(320, "Room not found", HttpStatus.NOT_FOUND),
+    NOT_OWN_ROOM(321, "Your are not owner of room", HttpStatus.BAD_REQUEST),
+    NOT_PERMISSION(322, "You do not have permission to do this", HttpStatus.BAD_REQUEST),
+    USERS_NOT_FRIENDS(323, "You are not friends", HttpStatus.BAD_REQUEST),
+    USER_ALREADY_IN_ROOM(324, "User is already in room", HttpStatus.BAD_REQUEST),
+    PARTICIPANT_IS_OWNER(325, "Participant is owner of room", HttpStatus.BAD_REQUEST),
+    USER_NOT_IN_ROOM(326, "User is not in room", HttpStatus.BAD_REQUEST),
     ;
     @Getter
     private final int code;

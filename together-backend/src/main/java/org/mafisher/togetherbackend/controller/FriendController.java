@@ -20,7 +20,7 @@ import java.util.List;
 public class FriendController {
     private final FriendService friendService;
 
-    @PostMapping("/requests/{nickname}")
+        @PostMapping("/requests/{nickname}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> sendRequest(@PathVariable String nickname, Principal principal) {
         friendService.sendRequest(nickname, principal);
