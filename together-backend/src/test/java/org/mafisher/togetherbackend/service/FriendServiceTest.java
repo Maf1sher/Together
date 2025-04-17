@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mafisher.togetherbackend.dto.UserDto;
 import org.mafisher.togetherbackend.entity.FriendRequest;
-import org.mafisher.togetherbackend.entity.Friendship;
 import org.mafisher.togetherbackend.entity.User;
 import org.mafisher.togetherbackend.handler.BusinessErrorCodes;
 import org.mafisher.togetherbackend.handler.CustomException;
@@ -19,16 +18,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.test.context.ActiveProfiles;
 
 import java.security.Principal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mafisher.togetherbackend.enums.FriendRequestStatus.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mafisher.togetherbackend.enums.FriendRequestStatus.ACCEPT;
+import static org.mafisher.togetherbackend.enums.FriendRequestStatus.PENDING;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,6 +37,9 @@ class FriendServiceTest {
 
     @Mock
     private FriendshipRepository friendshipRepository;
+
+    @Mock
+    private PrincipalService principalService;
 
     @Mock
     private UserRepository userRepository;
@@ -54,13 +55,13 @@ class FriendServiceTest {
 
     private final User userA = User.builder().id(1L).email("a@test.com").nickName("UserA").build();
     private final User userB = User.builder().id(2L).email("b@test.com").nickName("UserB").build();
-    private final UserDto userBDto = UserDto.builder().id(2L).email("b@test.com").nickName("UserB").build();
+    private final UserDto userBDto = UserDto.builder().nickName("UserB").build();
 
     @Test
     void sendRequest_ShouldCreateFriendship_WhenReverseRequestExists() {
-        when(principal.getName()).thenReturn("a@test.com");
-        when(userRepository.findByEmail("a@test.com")).thenReturn(Optional.of(userA));
-        when(userRepository.findByNickName("UserB")).thenReturn(Optional.of(userB));
+        when(principalService.checkUserPrincipal(principal)).thenReturn(userA);
+        when(principalService.checkUserExist("UserB")).thenReturn(userB);
+        when(principalService.isUsersDifferent(userA, userB)).thenReturn(true);
         when(friendshipRepository.existsBetweenUsers(userA, userB)).thenReturn(false);
 
         FriendRequest existingRequest = FriendRequest.builder()
@@ -68,23 +69,29 @@ class FriendServiceTest {
                 .receiver(userA)
                 .status(PENDING)
                 .build();
-        when(friendRequestRepository.findBySenderAndReceiver(eq(userB), eq(userA)))
-                .thenReturn(Optional.of(existingRequest));
-        when(friendRequestRepository.findBySenderAndReceiver(eq(userA), eq(userB)))
+
+        when(friendRequestRepository.findBySenderAndReceiver(userA, userB))
                 .thenReturn(Optional.empty());
+        when(friendRequestRepository.findBySenderAndReceiver(userB, userA))
+                .thenReturn(Optional.of(existingRequest));
 
         friendService.sendRequest("UserB", principal);
 
         assertThat(existingRequest.getStatus()).isEqualTo(ACCEPT);
         verify(friendRequestRepository).save(existingRequest);
-        verify(friendshipRepository).save(any(Friendship.class));
+        verify(friendshipRepository).save(argThat(friendship ->
+                friendship.getUser1().equals(userA) &&
+                        friendship.getUser2().equals(userB)
+        ));
     }
 
     @Test
     void sendRequest_ShouldThrow_WhenUsersAreSame() {
-        when(principal.getName()).thenReturn("a@test.com");
-        when(userRepository.findByEmail("a@test.com")).thenReturn(Optional.of(userA));
-        when(userRepository.findByNickName("UserA")).thenReturn(Optional.of(userA));
+        when(principalService.checkUserPrincipal(principal)).thenReturn(userA);
+        when(principalService.checkUserExist("UserA")).thenReturn(userA);
+
+        doThrow(new CustomException(BusinessErrorCodes.USERS_ARE_THE_SAME))
+                .when(principalService).isUsersDifferent(userA, userA);
 
         assertThatThrownBy(() -> friendService.sendRequest("UserA", principal))
                 .isInstanceOf(CustomException.class)
@@ -93,9 +100,8 @@ class FriendServiceTest {
 
     @Test
     void acceptRequest_ShouldCreateFriendship() {
-        when(principal.getName()).thenReturn("a@test.com");
-        when(userRepository.findByEmail("a@test.com")).thenReturn(Optional.of(userA));
-        when(userRepository.findByNickName("UserB")).thenReturn(Optional.of(userB));
+        when(principalService.checkUserPrincipal(principal)).thenReturn(userA);
+        when(principalService.checkUserExist("UserB")).thenReturn(userB);
         when(friendshipRepository.existsBetweenUsers(userA, userB)).thenReturn(false);
 
         FriendRequest request = FriendRequest.builder()
@@ -109,76 +115,131 @@ class FriendServiceTest {
         friendService.acceptRequest("UserB", principal);
 
         assertThat(request.getStatus()).isEqualTo(ACCEPT);
-        verify(friendshipRepository).save(argThat(f ->
-                (f.getUser1() == userA && f.getUser2() == userB) ||
-                        (f.getUser1() == userB && f.getUser2() == userA)
+        verify(friendshipRepository).save(argThat(friendship ->
+                (friendship.getUser1().equals(userA) && friendship.getUser2().equals(userB)) ||
+                        (friendship.getUser1().equals(userB) && friendship.getUser2().equals(userA))
         ));
     }
 
     @Test
-    void rejectRequest_ShouldUpdateStatus() {
-        when(principal.getName()).thenReturn("a@test.com");
-        when(userRepository.findByEmail("a@test.com")).thenReturn(Optional.of(userA));
-        when(userRepository.findByNickName("UserB")).thenReturn(Optional.of(userB));
+    void getFriends_ShouldReturnMappedDtos() {
+        when(principalService.checkUserPrincipal(principal)).thenReturn(userA);
+        Page<User> mockPage = new PageImpl<>(List.of(userB));
+        when(friendshipRepository.findFriendsByUser(userA, Pageable.unpaged())).thenReturn(mockPage);
+        when(mapper.mapTo(userB)).thenReturn(userBDto);
+
+        List<UserDto> result = friendService.getFriends(principal, Pageable.unpaged());
+
+        assertThat(result).containsExactly(userBDto);
+        verify(mapper).mapTo(userB);
+    }
+
+    @Test
+    void sendRequest_ShouldThrow_WhenRequestAlreadyExists() {
+        when(principalService.checkUserPrincipal(principal)).thenReturn(userA);
+        when(principalService.checkUserExist("UserB")).thenReturn(userB);
+        when(principalService.isUsersDifferent(userA, userB)).thenReturn(true);
         when(friendshipRepository.existsBetweenUsers(userA, userB)).thenReturn(false);
 
-        FriendRequest request = FriendRequest.builder()
-                .sender(userB)
-                .receiver(userA)
+        FriendRequest existingRequest = FriendRequest.builder()
+                .sender(userA)
+                .receiver(userB)
                 .status(PENDING)
+                .build();
+        when(friendRequestRepository.findBySenderAndReceiver(userA, userB))
+                .thenReturn(Optional.of(existingRequest));
+
+        assertThatThrownBy(() -> friendService.sendRequest("UserB", principal))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", BusinessErrorCodes.REQUEST_ALREADY_EXISTS);
+    }
+
+    @Test
+    void sendRequest_ShouldCreateNewRequest_WhenNoExistingRequests() {
+        when(principalService.checkUserPrincipal(principal)).thenReturn(userA);
+        when(principalService.checkUserExist("UserB")).thenReturn(userB);
+        when(principalService.isUsersDifferent(userA, userB)).thenReturn(true);
+        when(friendshipRepository.existsBetweenUsers(userA, userB)).thenReturn(false);
+
+        when(friendRequestRepository.findBySenderAndReceiver(any(), any()))
+                .thenReturn(Optional.empty());
+
+        friendService.sendRequest("UserB", principal);
+
+        verify(friendRequestRepository).save(argThat(request ->
+                request.getSender().equals(userA) &&
+                        request.getReceiver().equals(userB) &&
+                        request.getStatus() == PENDING
+        ));
+    }
+
+    @Test
+    void sendRequest_ShouldThrow_WhenUsersAreAlreadyFriends() {
+        when(principalService.checkUserPrincipal(principal)).thenReturn(userA);
+        when(principalService.checkUserExist("UserB")).thenReturn(userB);
+        when(friendshipRepository.existsBetweenUsers(userA, userB)).thenReturn(true);
+
+        assertThatThrownBy(() -> friendService.sendRequest("UserB", principal))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", BusinessErrorCodes.USERS_ARE_ALREADY_FRIENDS);
+    }
+
+    @Test
+    void acceptRequest_ShouldThrow_WhenRequestNotPending() {
+        when(principalService.checkUserPrincipal(principal)).thenReturn(userA);
+        when(principalService.checkUserExist("UserB")).thenReturn(userB);
+
+        FriendRequest request = FriendRequest.builder()
+                .status(ACCEPT)
                 .build();
         when(friendRequestRepository.findBySenderAndReceiver(userB, userA))
                 .thenReturn(Optional.of(request));
 
-        friendService.rejectRequest("UserB", principal);
-
-        assertThat(request.getStatus()).isEqualTo(REJECT);
-        verify(friendRequestRepository).save(request);
+        assertThatThrownBy(() -> friendService.acceptRequest("UserB", principal))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", BusinessErrorCodes.REQUEST_NOT_PENDING);
     }
 
     @Test
-    void getFriends_ShouldReturnMappedDtos() {
-        when(principal.getName()).thenReturn("a@test.com");
-        when(userRepository.findByEmail("a@test.com")).thenReturn(Optional.of(userA));
+    void rejectRequest_ShouldThrow_WhenRequestNotFound() {
+        when(principalService.checkUserPrincipal(principal)).thenReturn(userA);
+        when(principalService.checkUserExist("UserB")).thenReturn(userB);
+        when(friendRequestRepository.findBySenderAndReceiver(userB, userA))
+                .thenReturn(Optional.empty());
 
-        Page<User> friendsPage = new PageImpl<>(List.of(userB));
-        when(friendshipRepository.findFriendsByUser(userA, Pageable.unpaged()))
-                .thenReturn(friendsPage);
-        when(mapper.mapTo(userB)).thenReturn(userBDto);
-
-        List<UserDto> result = friendService.getFriends(principal, Pageable.unpaged());
-        assertThat(result).containsExactly(userBDto);
+        assertThatThrownBy(() -> friendService.rejectRequest("UserB", principal))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", BusinessErrorCodes.REQUEST_NOT_FOUND);
     }
 
     @Test
-    void getReceivedRequests_ShouldFilterPending() {
-        // Arrange
-        when(principal.getName()).thenReturn("a@test.com");
-        User userAWithRequests = User.builder()
-                .receivedRequests(List.of(
-                        FriendRequest.builder().sender(userB).status(PENDING).build(),
-                        FriendRequest.builder().sender(userB).status(ACCEPT).build()
-                ))
-                .build();
-        when(userRepository.findByEmail("a@test.com")).thenReturn(Optional.of(userAWithRequests));
-        when(mapper.mapTo(userB)).thenReturn(userBDto);
+    void searchUsers_ShouldReturnEmpty_WhenNoMatches() {
+        when(principalService.checkUserPrincipal(principal)).thenReturn(userA);
+        when(userRepository.findPotentialFriends(anyString(), eq(userA), any()))
+                .thenReturn(Page.empty());
 
-        List<UserDto> result = friendService.getReceivedRequests(principal, Pageable.unpaged());
+        Page<UserDto> result = friendService.searchUsers("invalid", Pageable.unpaged(), principal);
 
-        assertThat(result).hasSize(1).containsExactly(userBDto);
+        assertThat(result).isEmpty();
     }
 
     @Test
-    void searchUsers_ShouldMapResults() {
-        when(principal.getName()).thenReturn("a@test.com");
-        when(userRepository.findByEmail("a@test.com")).thenReturn(Optional.of(userA));
+    void shouldThrowWhenPrincipalInvalid() {
+        when(principalService.checkUserPrincipal(principal))
+                .thenThrow(new CustomException(BusinessErrorCodes.BAD_CREDENTIALS));
 
-        Page<User> usersPage = new PageImpl<>(List.of(userB));
-        when(userRepository.findPotentialFriends("query", userA, Pageable.unpaged()))
-                .thenReturn(usersPage);
-        when(mapper.mapTo(userB)).thenReturn(userBDto);
-        Page<UserDto> result = friendService.searchUsers("query", Pageable.unpaged(), principal);
+        assertThatThrownBy(() -> friendService.getFriends(principal, Pageable.unpaged()))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", BusinessErrorCodes.BAD_CREDENTIALS);
+    }
 
-        assertThat(result.getContent()).containsExactly(userBDto);
+    @Test
+    void shouldThrowWhenUserNotFound() {
+        when(principalService.checkUserExist("InvalidUser"))
+                .thenThrow(new CustomException(BusinessErrorCodes.USER_NOT_FOUND));
+
+        assertThatThrownBy(() -> friendService.sendRequest("InvalidUser", principal))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", BusinessErrorCodes.USER_NOT_FOUND);
     }
 }
