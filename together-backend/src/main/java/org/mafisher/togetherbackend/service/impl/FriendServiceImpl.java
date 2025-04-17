@@ -12,6 +12,7 @@ import org.mafisher.togetherbackend.repository.FriendRequestRepository;
 import org.mafisher.togetherbackend.repository.FriendshipRepository;
 import org.mafisher.togetherbackend.repository.UserRepository;
 import org.mafisher.togetherbackend.service.FriendService;
+import org.mafisher.togetherbackend.service.PrincipalService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -30,16 +31,17 @@ public class FriendServiceImpl implements FriendService {
     private final FriendshipRepository friendshipRepository;
     private final UserRepository userRepository;
     private final Mapper<User, UserDto> mapper;
+    private final PrincipalService principalService;
 
     @Override
     public void sendRequest(String nickname, Principal principal) {
-        User sender = checkUserPrincipal(principal);
+        User sender = principalService.checkUserPrincipal(principal);
 
-        User receiver = checkUserExist(nickname);
+        User receiver = principalService.checkUserExist(nickname);
 
         checkUsersAreFriends(sender, receiver);
 
-        isUsersDifferent(sender, receiver);
+        principalService.isUsersDifferent(sender, receiver);
 
         friendRequestRepository.findBySenderAndReceiver(sender, receiver).ifPresent(req -> {
             if (req.getStatus() == PENDING) throw new CustomException(BusinessErrorCodes.REQUEST_ALREADY_EXISTS);
@@ -71,9 +73,9 @@ public class FriendServiceImpl implements FriendService {
 
     @Override
     public void acceptRequest(String nickname, Principal principal) {
-        User sender = checkUserPrincipal(principal);
+        User sender = principalService.checkUserPrincipal(principal);
 
-        User acceptedUser = checkUserExist(nickname);
+        User acceptedUser = principalService.checkUserExist(nickname);
 
         checkUsersAreFriends(sender, acceptedUser);
 
@@ -94,9 +96,9 @@ public class FriendServiceImpl implements FriendService {
 
     @Override
     public void rejectRequest(String nickname, Principal principal) {
-        User sender = checkUserPrincipal(principal);
+        User sender = principalService.checkUserPrincipal(principal);
 
-        User rejectedUser = checkUserExist(nickname);
+        User rejectedUser = principalService.checkUserExist(nickname);
 
         checkUsersAreFriends(sender, rejectedUser);
 
@@ -111,14 +113,14 @@ public class FriendServiceImpl implements FriendService {
 
     @Override
     public List<UserDto> getFriends(Principal principal, Pageable pageable) {
-        User sender = checkUserPrincipal(principal);
+        User sender = principalService.checkUserPrincipal(principal);
         return friendshipRepository.findFriendsByUser(sender, pageable).stream().map(mapper::mapTo)
                 .toList();
     }
 
     @Override
     public List<UserDto> getReceivedRequests(Principal principal, Pageable pageable) {
-        User sender = checkUserPrincipal(principal);
+        User sender = principalService.checkUserPrincipal(principal);
         return sender.getReceivedRequests().stream()
                 .filter((request)-> request.getStatus() == PENDING)
                 .map((request)-> mapper.mapTo(request.getSender()))
@@ -127,19 +129,11 @@ public class FriendServiceImpl implements FriendService {
 
     @Override
     public Page<UserDto> searchUsers(String query, Pageable pageable, Principal principal) {
-        User sender = checkUserPrincipal(principal);
+        User sender = principalService.checkUserPrincipal(principal);
         return userRepository.findPotentialFriends(query, sender, pageable).map(mapper::mapTo);
     }
 
-    private User checkUserPrincipal(Principal principal) {
-        return userRepository.findByEmail(principal.getName())
-                .orElseThrow(() -> new CustomException(BusinessErrorCodes.BAD_CREDENTIALS));
-    }
 
-    private User checkUserExist(String nickname) {
-        return userRepository.findByNickName(nickname)
-                .orElseThrow(() -> new CustomException(BusinessErrorCodes.USER_NOT_FOUND));
-    }
 
     private void checkUsersAreFriends(User user1, User user2) {
         if (friendshipRepository.existsBetweenUsers(user1, user2)) {
@@ -152,8 +146,4 @@ public class FriendServiceImpl implements FriendService {
                 .orElseThrow(() -> new CustomException(BusinessErrorCodes.REQUEST_NOT_FOUND));
     }
 
-    private void isUsersDifferent(User user1, User user2) {
-        if(user1.getId().equals(user2.getId()))
-            throw new CustomException(BusinessErrorCodes.USERS_ARE_THE_SAME);
-    }
 }
